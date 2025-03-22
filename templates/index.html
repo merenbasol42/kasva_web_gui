@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>ROS2 Canlı Yayın & Yön Butonları Kontrol</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>ROS2 Kameradan Canlı Yayın & Yön Butonları Kontrol</h1>
+    <div id="video-container">
+        <img src="{{ url_for('video_feed') }}" alt="Kamera Yayını">
+    </div>
+    
+    <div class="controls-info">
+        <p><strong>Kullanım:</strong> Aşağıdaki yön butonlarını kullanarak robotu kontrol edebilirsiniz. İleri, geri, sola, sağa ve dur komutları gönderilecektir.</p>
+    </div>
+    
+    <div class="controls-container">
+        <div class="button-control">
+            <button id="btn-forward" class="control-button">İleri</button>
+        </div>
+        <div class="button-control">
+            <button id="btn-left" class="control-button">Sola</button>
+            <button id="btn-stop" class="control-button">Durdur</button>
+            <button id="btn-right" class="control-button">Sağa</button>
+        </div>
+        <div class="button-control">
+            <button id="btn-backward" class="control-button">Geri</button>
+        </div>
+    </div>
+    
+    <!-- Opsiyonel hız göstergesi -->
+    <div class="speed-display">
+        <span id="linear-display">0.00</span> | <span id="angular-display">0.00</span>
+    </div>
+    
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
