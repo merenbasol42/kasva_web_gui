@@ -8,16 +8,54 @@ const MAX_ANGULAR_SPEED = 1.5;
 // Zaman kontrolü için değişken (komut gönderme sıklığını sınırlandırmak için)
 let lastCommandTime = 0;
 
-// Buton elementlerini seç
+// Joystick için gerekli değişkenler
+let manager;
+let joystick;
+
+// Buton elementlerini seç (gizlenecek)
 const forwardBtn = document.getElementById('btn-forward');
 const backwardBtn = document.getElementById('btn-backward');
 const leftBtn = document.getElementById('btn-left');
 const rightBtn = document.getElementById('btn-right');
 const stopBtn = document.getElementById('btn-stop');
 
+forwardBtn.style.display = 'none';
+backwardBtn.style.display = 'none';
+leftBtn.style.display = 'none';
+rightBtn.style.display = 'none';
+stopBtn.style.display = 'none';
+
+
 // Hız göstergesi elementleri (isteğe bağlı)
 const linearDisplay = document.getElementById('linear-display');
 const angularDisplay = document.getElementById('angular-display');
+
+// Joystick oluşturma ve olay dinleyicisi ekleme
+function createJoystick() {
+  manager = nipplejs.create({
+    zone: document.getElementById('controls-container'), // Joystick'in konumu
+    color: 'white',
+    size: 100,
+    position: {left: '50%', top: '50%'},
+    mode: 'static',
+    // Herhangi bir yön için bir olay dinleyicisi ekleyin
+    onmove: function(evt, data) {
+      const linear = data.direction.y * MAX_LINEAR_SPEED;
+      const angular = data.direction.x * MAX_ANGULAR_SPEED;
+      sendJoystickCommand(linear, angular);
+      updateDisplays();
+    },
+    onend: function() {
+      sendJoystickCommand(0, 0);
+      updateDisplays();
+    }
+  });
+}
+
+window.onload = function() {
+  createJoystick();
+  sendJoystickCommand(0, 0);
+};
 
 function updateDisplays() {
   if (linearDisplay) {

@@ -11,13 +11,18 @@ from cv_bridge import CvBridge, CvBridgeError
 
 # --- Global Queue for Frame Data ---
 frame_queue = queue.Queue(maxsize=1)
+map_queue = queue.Queue(maxsize=1)
 
 # --- ROS2 Node: Web GUI ---
 class WebGuiNode(Node):
     def __init__(self):
         super().__init__("webgui")
+
         self.img = None  # Son alınan görüntü mesajı
         self.img_flag = False
+        self.map = None
+        self.map_flag = False
+        
         self.cv_bridge = CvBridge()
 
         # Twist mesajları için yayıncı oluşturuyoruz
@@ -26,20 +31,29 @@ class WebGuiNode(Node):
         # Kamera görüntülerini dinlemek için abonelik
         self.create_subscription(
             Image,
-            'camera/image_raw',
+            "camera/image_raw",
             self.img_cb,
             3
         )
+        self.create_subscription(
+            Image,
+            "map_image",
+            self.map_img_cb,
+            3
+        )
 
-    def start_image_processing(self) -> None:
+    def start(self) -> None:
         """
         Arka planda sürekli görüntü işleme işlemi başlatır.
         """
-        def process_images():
+        def func():
             while rclpy.ok():
                 if self.img_flag:
                     self.process_image()
-        Thread(target=process_images, daemon=True).start()
+                if self.map_flag:
+                    self.process_map()
+
+        Thread(target=func, daemon=True).start()
 
     def img_cb(self, msg: Image) -> None:
         """
@@ -47,6 +61,14 @@ class WebGuiNode(Node):
         """
         self.img = msg
         self.img_flag = True
+
+    def map_img_cb(self, msg: Image) -> None:
+        self.map = msg
+        self.map_flag = True
+
+    def process_map(self) -> None:
+        frame = self.cv_bridge.imgmsg_to_cv2(self.map, desired_encoding='bgr8')
+        map_queue.put(frame)
 
     def process_image(self) -> None:
         """
@@ -96,6 +118,20 @@ def gen_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
+def get_map_frames():
+    while True:
+        try:
+            frame = map_queue.get(timeout=1)
+        except queue.Empty:
+            continue
+        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        if not ret:
+            continue
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+
 @app.route('/')
 def index():
     """
@@ -109,6 +145,13 @@ def video_feed():
     Video akışını sağlayan endpoint.
     """
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/map_feed')
+def map_feed():
+    """
+    Video akışını sağlayan endpoint.
+    """
+    return Response(get_map_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/cmd_vel', methods=['POST'])
 def cmd_vel():
@@ -132,7 +175,7 @@ if __name__ == '__main__':
     # ROS2 başlatılıyor
     rclpy.init()
     ros_node = WebGuiNode()
-    ros_node.start_image_processing()
+    ros_node.start()
     # ROS2 işlemleri ayrı bir thread üzerinden çalıştırılıyor
     ros_thread = Thread(target=lambda: rclpy.spin(ros_node), daemon=True)
     ros_thread.start()
